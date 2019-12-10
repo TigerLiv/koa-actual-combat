@@ -1,8 +1,12 @@
 const Router=require("koa-router");
-const router = new Router();
-const bcrypt=require("bcryptjs");
+var gravatar = require('gravatar');
+const tools=require('./../../config/tools');
+const jwt=require("jsonwebtoken");
+const keys=require("./../../config/keys");
 // 引入User
 const User=require('./../../models/User');
+
+const router = new Router();
 
 /*
  @route api/users/test
@@ -34,20 +38,14 @@ router.post('/register',async ctx=>{
         ctx.status = 500;
         ctx.body={email:"邮箱已被占用"};
     }else {
+        const avatar = gravatar.url(ctx.request.body.email, {s: '200', r: 'pg', d: 'mm'});
+
         const newUser=new User({
             name:ctx.request.body.name,
-            password:ctx.request.body.password,
+            avatar:avatar,
+            password:tools.enBcrypt(ctx.request.body.password),
             email:ctx.request.body.email
         })
-
-        await bcrypt.genSalt(10,(err,salt)=>{
-            bcrypt.hash(newUser.password,salt,(err,hash)=>{
-                if(err) throw err;
-                newUser.password=hash;
-            })
-        })
-        
-
         // console.log(newUser)
         // 存到数据库
         await newUser.save().then(user=>{
@@ -58,6 +56,36 @@ router.post('/register',async ctx=>{
         //返回数据
         // ctx.body=newUser;
     }
+})
 
+/*
+登录接口
+login
+返回的是一个token
+*/
+router.post('/login',async ctx=>{
+    // 查询邮箱 
+    const findResult = await User.find({email:ctx.request.body.email});
+    const user=findResult[0];
+    const password= ctx.request.body.password;
+    if(findResult.length===0){
+        ctx.status = 404;
+        ctx.body= '用户不存在';
+    }else {
+        //验证密码
+        var result= await tools.comparePassword(password,user.password)
+        if(result){
+            const payload={id:user.id,name:user.name,avatar:user.avatar};
+            const token =jwt.sign(payload,keys.screctOrKey,{expiresIn:3600})
+
+            ctx.status=200;
+            ctx.body={success:'登录成功',token:"Bearer "+token}
+            //返回token
+            
+        }else {
+            ctx.status=400;
+            ctx.body={error:"密码错误"}
+        }
+    }
 })
 module.exports=router.routes()
