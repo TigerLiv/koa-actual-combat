@@ -5,6 +5,8 @@ const jwt=require("jsonwebtoken");
 const keys=require("./../../config/keys");
 // 引入User
 const User=require('./../../models/User');
+const passport =require('koa-passport')
+const ValidateRegister= require('./../../validation/register');
 
 const router = new Router();
 
@@ -32,6 +34,14 @@ router.post('/register',async ctx=>{
 
 
     //存到database
+    const {errors, isVaild} = ValidateRegister(ctx.request.body);
+
+    if(!isVaild){
+        ctx.status=400;
+        ctx.body=errors;
+        return;
+    }
+
     const findResult = await User.find({email:ctx.request.body.email})
     console.log(findResult)
     if(findResult.length>0){
@@ -88,4 +98,9 @@ router.post('/login',async ctx=>{
         }
     }
 })
+// 用户信息接口 返回用户信息
+router.get('/current',passport.authenticate('jwt', { session: false }), async ctx =>{
+    ctx.body=ctx.state.user;
+})
+
 module.exports=router.routes()

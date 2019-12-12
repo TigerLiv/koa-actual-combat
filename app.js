@@ -2,13 +2,19 @@ const koa=require("koa");
 const Router=require("koa-router")
 const mongoose=require("mongoose")
 const bodyParser = require('koa-bodyparser')
+const passport = require('koa-passport')
 
 //实例化koa
 const app=new koa();
 const router=new Router();
 app.use(bodyParser())
+app.use(passport.initialize())
+app.use(passport.session())
 // 引入user.js
 const users=require('./routes/api/users');
+
+require('./config/passport')(passport)
+
 
 //链接数据库
 const db =require('./config/keys').mongooseUrl
